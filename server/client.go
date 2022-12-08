@@ -257,7 +257,7 @@ func (client *client) setConnected(time time.Time) {
 	atomic.StoreInt32(&client.status, Connected)
 }
 
-//Status returns client's status
+// Status returns client's status
 func (client *client) Status() int32 {
 	return atomic.LoadInt32(&client.status)
 }
@@ -1286,7 +1286,7 @@ func (client *client) disconnectHandler(dis *packets.Disconnect) *codes.Error {
 	return nil
 }
 
-//读处理
+// 读处理
 func (client *client) readHandle() {
 	var err error
 	defer func() {
@@ -1441,36 +1441,18 @@ func (client *client) pollMessageHandler() {
 	}
 }
 
-//server goroutine结束的条件:1客户端断开连接 或 2发生错误
+// server goroutine结束的条件:1客户端断开连接 或 2发生错误
 func (client *client) serve() {
 	defer client.internalClose()
-	readWg := &sync.WaitGroup{}
 
-	readWg.Add(1)
-	go func() { //read
-		client.readLoop()
-		readWg.Done()
-	}()
-
-	client.wg.Add(1)
-	go func() { //write
-		client.writeLoop()
-		client.wg.Done()
-	}()
+	go client.readLoop() //read
 
 	if ok := client.connectWithTimeOut(); ok {
-		client.wg.Add(2)
-		go func() {
-			client.pollMessageHandler()
-			client.wg.Done()
-		}()
-		go func() {
-			client.readHandle()
-			client.wg.Done()
-		}()
-
+		go client.pollMessageHandler()
+		go client.readHandle()
 	}
-	readWg.Wait()
+
+	client.writeLoop() //write
 
 	if client.queueStore != nil {
 		qerr := client.queueStore.Close()
